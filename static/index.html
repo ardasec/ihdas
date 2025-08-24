@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ihdas - URL Shortener</title>
+    <style>
+        :root {
+            /* Gruvbox Color Palette */
+            --bg-dark: #282828;
+            --bg-darker: #1d2021;
+            --bg-light: #3c3836;
+            --bg-lighter: #504945;
+            --fg-light: #fbf1c7;
+            --fg-medium: #ebdbb2;
+            --fg-dark: #a89984;
+            --red: #cc241d;
+            --green: #98971a;
+            --yellow: #d79921;
+            --blue: #458588;
+            --purple: #b16286;
+            --aqua: #689d6a;
+            --orange: #d65d0e;
+            --red-bright: #fb4934;
+            --green-bright: #b8bb26;
+            --yellow-bright: #fabd2f;
+            --blue-bright: #83a598;
+            --purple-bright: #d3869b;
+            --aqua-bright: #8ec07c;
+            --orange-bright: #fe8019;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--fg-medium);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .main-content {
+            background: var(--bg-darker);
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            color: var(--fg-light);
+            margin-bottom: 0.25rem;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+
+        .logo .tagline {
+            color: var(--fg-dark);
+            font-size: 0.9rem;
+            font-weight: 300;
+        }
+
+        .input-section {
+            background: var(--bg-light);
+            padding: 1.25rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid var(--blue-bright);
+        }
+
+        .input-section h3, .stats-section h3 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--fg-medium);
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            color: var(--yellow-bright);
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        input[type="url"], input[type="text"], input[type="datetime-local"] {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-darker);
+            border: 2px solid var(--bg-lighter);
+            border-radius: 6px;
+            color: var(--fg-light);
+            font-family: inherit;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--aqua-bright);
+            box-shadow: 0 0 0 2px rgba(142, 192, 124, 0.2);
+        }
+
+        input::placeholder {
+            color: var(--fg-dark);
+        }
+
+        .button {
+            background: var(--green);
+            color: var(--fg-light);
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid var(--green);
+        }
+
+        .button:hover {
+            background: var(--green-bright);
+            border-color: var(--green-bright);
+            transform: translateY(-2px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button:disabled {
+            background: var(--bg-lighter);
+            border-color: var(--bg-lighter);
+            color: var(--fg-dark);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            background: var(--bg-light);
+            padding: 1.25rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            border-left: 3px solid var(--green-bright);
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .result-section h3 {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--green-bright);
+            margin-bottom: 1rem;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-item {
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .result-label {
+            color: var(--orange-bright);
+            font-weight: bold;
+            min-width: 120px;
+        }
+
+        .result-value {
+            color: var(--fg-light);
+            background: var(--bg-darker);
+            padding: 0.5rem;
+            border-radius: 4px;
+            flex: 1;
+            font-family: inherit;
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+
+        .copy-btn {
+            background: var(--blue);
+            color: var(--fg-light);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--blue-bright);
+        }
+
+        .stats-section {
+            background: var(--bg-light);
+            padding: 1.25rem;
+            border-radius: 6px;
+            border-left: 3px solid var(--orange-bright);
+        }
+
+        .stats-input {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stats-result {
+            display: none;
+            background: var(--bg-darker);
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+
+        .stats-result.show {
+            display: block;
+        }
+
+        .error {
+            background: var(--red);
+            color: var(--fg-light);
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--fg-dark);
+            font-size: 0.85rem;
+            font-weight: 300;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .logo h1 {
+                font-size: 1.5rem;
+            }
+            
+            .stats-input {
+                flex-direction: column;
+            }
+            
+            .result-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+            
+            .result-label {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <div class="logo">
+                <h1>ihdas</h1>
+                <div class="tagline">creating the links you need</div>
+            </div>
+
+            <div class="input-section">
+                <h3>Shorten URL</h3>
+                <form id="shortenForm">
+                    <div class="form-group">
+                        <label for="originalUrl">Original URL *</label>
+                        <input type="url" id="originalUrl" placeholder="https://example.com/very-long-url" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="customCode">Custom Code (optional)</label>
+                        <input type="text" id="customCode" placeholder="my-awesome-link">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="expiresAt">Expires At (optional)</label>
+                        <input type="datetime-local" id="expiresAt">
+                    </div>
+                    
+                    <button type="submit" class="button" id="shortenBtn">
+                        Create Short URL
+                    </button>
+                </form>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="result-section" id="resultSection">
+                <h3>URL created successfully</h3>
+                <div class="result-item">
+                    <div class="result-label">Short URL:</div>
+                    <div class="result-value" id="shortUrl"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('shortUrl')">Copy</button>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">Short Code:</div>
+                    <div class="result-value" id="shortCode"></div>
+                    <button class="copy-btn" onclick="copyToClipboard('shortCode')">Copy</button>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">Created:</div>
+                    <div class="result-value" id="createdAt"></div>
+                </div>
+            </div>
+
+            <div class="stats-section">
+                <h3>Get Statistics</h3>
+                <div class="stats-input">
+                    <input type="text" id="statsCode" placeholder="Enter short code" style="flex: 1;">
+                    <button type="button" class="button" onclick="getStats()">Get Stats</button>
+                </div>
+                
+                <div class="stats-result" id="statsResult">
+                    <div class="result-item">
+                        <div class="result-label">Clicks:</div>
+                        <div class="result-value" id="clickCount"></div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">Original URL:</div>
+                        <div class="result-value" id="statsOriginalUrl"></div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">Created:</div>
+                        <div class="result-value" id="statsCreatedAt"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Built with Go + PostgreSQL • <a href="/health" style="color: var(--green-bright);">API Health</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Form submission
+        document.getElementById('shortenForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('shortenBtn');
+            const originalBtn = btn.textContent;
+            btn.textContent = 'Creating...';
+            btn.disabled = true;
+            
+            hideError();
+            hideResult();
+            
+            try {
+                const data = {
+                    original_url: document.getElementById('originalUrl').value,
+                    custom_code: document.getElementById('customCode').value || undefined,
+                    expires_at: document.getElementById('expiresAt').value ? 
+                        new Date(document.getElementById('expiresAt').value).toISOString() : undefined
+                };
+
+                const response = await fetch('/api/v1/shorten', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayResult(result);
+                } else {
+                    showError(result.error || 'Failed to create short URL');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                btn.textContent = originalBtn;
+                btn.disabled = false;
+            }
+        });
+
+        // Get stats
+        async function getStats() {
+            const code = document.getElementById('statsCode').value.trim();
+            if (!code) {
+                showError('Please enter a short code');
+                return;
+            }
+
+            hideError();
+            document.getElementById('statsResult').classList.remove('show');
+
+            try {
+                const response = await fetch(`/api/v1/stats/${code}`);
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayStats(result);
+                } else {
+                    showError(result.error || 'Failed to get stats');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            }
+        }
+
+        // Display result
+        function displayResult(result) {
+            document.getElementById('shortUrl').textContent = result.short_url;
+            document.getElementById('shortCode').textContent = result.short_code;
+            document.getElementById('createdAt').textContent = new Date(result.created_at).toLocaleString();
+            document.getElementById('resultSection').classList.add('show');
+        }
+
+        // Display stats
+        function displayStats(stats) {
+            document.getElementById('clickCount').textContent = stats.click_count.toLocaleString();
+            document.getElementById('statsOriginalUrl').textContent = stats.original_url;
+            document.getElementById('statsCreatedAt').textContent = new Date(stats.created_at).toLocaleString();
+            document.getElementById('statsResult').classList.add('show');
+        }
+
+        // Copy to clipboard
+        async function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            try {
+                await navigator.clipboard.writeText(text);
+                
+                // Visual feedback
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.style.background = 'var(--green-bright)';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 1000);
+            } catch (error) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // Error handling
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = `ERROR: ${message}`;
+            errorDiv.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.remove('show');
+        }
+
+        function hideResult() {
+            document.getElementById('resultSection').classList.remove('show');
+        }
+
+        // Enter key support for stats
+        document.getElementById('statsCode').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                getStats();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ihdas Health Dashboard</title>
+    <style>
+        :root {
+            /* Gruvbox Color Palette */
+            --bg-dark: #282828;
+            --bg-darker: #1d2021;
+            --bg-light: #3c3836;
+            --bg-lighter: #504945;
+            --fg-light: #fbf1c7;
+            --fg-medium: #ebdbb2;
+            --fg-dark: #a89984;
+            --red: #cc241d;
+            --green: #98971a;
+            --yellow: #d79921;
+            --blue: #458588;
+            --purple: #b16286;
+            --aqua: #689d6a;
+            --orange: #d65d0e;
+            --red-bright: #fb4934;
+            --green-bright: #b8bb26;
+            --yellow-bright: #fabd2f;
+            --blue-bright: #83a598;
+            --purple-bright: #d3869b;
+            --aqua-bright: #8ec07c;
+            --orange-bright: #fe8019;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--fg-medium);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: var(--fg-light);
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+        }
+
+        .header .subtitle {
+            color: var(--fg-dark);
+            font-size: 1.1rem;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin: 1rem 0;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-healthy .status-dot {
+            background: var(--green-bright);
+        }
+
+        .status-unhealthy .status-dot {
+            background: var(--red-bright);
+        }
+
+        .status-warning .status-dot {
+            background: var(--yellow-bright);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--bg-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-left: 4px solid var(--blue-bright);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .metric-card.database {
+            border-left-color: var(--green-bright);
+        }
+
+        .metric-card.performance {
+            border-left-color: var(--purple-bright);
+        }
+
+        .metric-card.cache {
+            border-left-color: var(--orange-bright);
+        }
+
+        .metric-card.system {
+            border-left-color: var(--aqua-bright);
+        }
+
+        .metric-title {
+            font-size: 0.9rem;
+            color: var(--fg-dark);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 2.2rem;
+            font-weight: 300;
+            color: var(--fg-light);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-unit {
+            font-size: 0.9rem;
+            color: var(--fg-dark);
+        }
+
+        .metric-description {
+            font-size: 0.85rem;
+            color: var(--fg-dark);
+            margin-top: 0.5rem;
+        }
+
+        .details-section {
+            background: var(--bg-darker);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .details-title {
+            font-size: 1.2rem;
+            color: var(--fg-light);
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-light);
+            border-radius: 6px;
+        }
+
+        .detail-label {
+            color: var(--fg-medium);
+            font-weight: 500;
+        }
+
+        .detail-value {
+            color: var(--fg-light);
+            font-weight: 300;
+        }
+
+        .refresh-button {
+            background: var(--blue);
+            color: var(--fg-light);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .refresh-button:hover {
+            background: var(--blue-bright);
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .error-message {
+            background: var(--red);
+            color: var(--fg-light);
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .last-updated {
+            text-align: center;
+            color: var(--fg-dark);
+            font-size: 0.9rem;
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .refresh-button {
+                bottom: 1rem;
+                right: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>ihdas Health Dashboard</h1>
+            <p class="subtitle">Real-time system monitoring and performance metrics</p>
+            <div class="status-indicator" id="statusIndicator">
+                <div class="status-dot"></div>
+                <span id="statusText">Loading...</span>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card system">
+                <div class="metric-title">Uptime</div>
+                <div class="metric-value" id="uptime">--</div>
+                <div class="metric-description">System has been running</div>
+            </div>
+
+            <div class="metric-card database">
+                <div class="metric-title">Database Status</div>
+                <div class="metric-value" id="dbStatus">--</div>
+                <div class="metric-description">PostgreSQL connection</div>
+            </div>
+
+            <div class="metric-card cache">
+                <div class="metric-title">Cache Size</div>
+                <div class="metric-value" id="cacheSize">--</div>
+                <div class="metric-unit">entries</div>
+                <div class="metric-description">URLs cached in memory</div>
+            </div>
+
+            <div class="metric-card performance">
+                <div class="metric-title">Total URLs</div>
+                <div class="metric-value" id="totalUrls">--</div>
+                <div class="metric-description">URLs created</div>
+            </div>
+        </div>
+
+        <div class="details-section">
+            <div class="details-title">System Information</div>
+            <div class="details-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Version</span>
+                    <span class="detail-value" id="version">--</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Go Version</span>
+                    <span class="detail-value" id="goVersion">--</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Database Queries</span>
+                    <span class="detail-value" id="dbQueries">--</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Memory Usage</span>
+                    <span class="detail-value" id="memoryUsage">--</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Active Connections</span>
+                    <span class="detail-value" id="activeConnections">--</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Response Time</span>
+                    <span class="detail-value" id="responseTime">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="last-updated" id="lastUpdated">
+            Last updated: --
+        </div>
+
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+
+    <button class="refresh-button" onclick="refreshData()" id="refreshButton">
+        Refresh Data
+    </button>
+
+    <script>
+        let isLoading = false;
+
+        async function fetchHealthData() {
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                const responseTime = Date.now() - startTime;
+                
+                updateUI(data, responseTime);
+                hideError();
+                
+                return data;
+            } catch (error) {
+                showError(`Failed to fetch health data: ${error.message}`);
+                throw error;
+            }
+        }
+
+        function updateUI(data, responseTime) {
+            // Status indicator
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if (data.status === 'healthy') {
+                statusIndicator.className = 'status-indicator status-healthy';
+                statusText.textContent = 'System Healthy';
+            } else if (data.status === 'unhealthy') {
+                statusIndicator.className = 'status-indicator status-unhealthy';
+                statusText.textContent = 'System Issues Detected';
+            } else {
+                statusIndicator.className = 'status-indicator status-warning';
+                statusText.textContent = 'System Warning';
+            }
+
+            // Main metrics
+            document.getElementById('uptime').textContent = formatUptime(data.uptime);
+            document.getElementById('dbStatus').textContent = data.database === 'up' ? '✅ Connected' : '❌ Disconnected';
+            document.getElementById('cacheSize').textContent = data.cache_size?.toLocaleString() || '0';
+            document.getElementById('totalUrls').textContent = data.total_urls?.toLocaleString() || '--';
+
+            // Details
+            document.getElementById('version').textContent = data.version || '--';
+            document.getElementById('goVersion').textContent = data.go_version || '--';
+            document.getElementById('dbQueries').textContent = data.db_queries?.toLocaleString() || '--';
+            document.getElementById('memoryUsage').textContent = formatMemory(data.memory_usage);
+            document.getElementById('activeConnections').textContent = 
+                `${data.active_connections || '--'}/${data.max_connections || '--'}`;
+            document.getElementById('responseTime').textContent = `${responseTime}ms`;
+
+            // Last updated
+            document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        function formatUptime(uptime) {
+            if (!uptime) return '--';
+            
+            // Parse duration string like "2h34m12.5s"
+            const match = uptime.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?/);
+            if (!match) return uptime;
+            
+            const hours = parseInt(match[1] || 0);
+            const minutes = parseInt(match[2] || 0);
+            const seconds = parseInt(match[3] || 0);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+
+        function formatMemory(bytes) {
+            if (!bytes) return '--';
+            
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+            
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+            
+            return `${size.toFixed(1)} ${units[unitIndex]}`;
+        }
+
+        async function refreshData() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            const refreshButton = document.getElementById('refreshButton');
+            const originalText = refreshButton.textContent;
+            
+            refreshButton.textContent = 'Refreshing...';
+            refreshButton.disabled = true;
+            document.querySelector('.dashboard').classList.add('loading');
+            
+            try {
+                await fetchHealthData();
+            } catch (error) {
+                console.error('Refresh failed:', error);
+            } finally {
+                isLoading = false;
+                refreshButton.textContent = originalText;
+                refreshButton.disabled = false;
+                document.querySelector('.dashboard').classList.remove('loading');
+            }
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        // Auto-refresh every 5 seconds
+        setInterval(refreshData, 5000);
+
+        // Initial load
+        refreshData();
+    </script>
+</body>
+</html>
