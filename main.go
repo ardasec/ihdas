@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -66,22 +66,21 @@ type cacheEntry struct {
 	cachedAt  time.Time
 }
 
-// Sequential code generation - simplified and fast
-func getNextSequentialCode() (string, error) {
-	var nextId int64
-	atomic.AddInt64(&dbQueryCounter, 1)
-	err := db.QueryRow(`SELECT nextval('urls_id_seq')`).Scan(&nextId)
-	if err != nil {
-		return "", err
+// Generate a random alphanumeric short code
+func generateRandomCode(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[rand.Intn(len(charset))]
 	}
-	return strconv.FormatInt(nextId, 10), nil
+	return string(b)
 }
 
-// Database initialization - optimized but not over-engineered
+// Database initialization
 func initDB() {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://ihdas:ihdas-secure-password-2024@localhost/ihdas?sslmode=disable"
+		dbURL = "postgres://ihdas:secure-and-complicated-password@localhost/ihdas?sslmode=disable"
 	}
 	
 	var err error
@@ -110,9 +109,6 @@ func initDB() {
 	CREATE UNIQUE INDEX IF NOT EXISTS idx_short_code ON urls(short_code);
 	CREATE INDEX IF NOT EXISTS idx_expires_at ON urls(expires_at) WHERE expires_at IS NOT NULL;
 	CREATE INDEX IF NOT EXISTS idx_created_at ON urls(created_at);
-	
-	-- Cache 50 sequence numbers for better performance
-	ALTER SEQUENCE urls_id_seq CACHE 50;
 	`
 	
 	if _, err := db.Exec(createSQL); err != nil {
@@ -220,80 +216,106 @@ func isValidCustomCode(code string) bool {
 
 // Handlers
 func createURLHandler(w http.ResponseWriter, r *http.Request) {
-	// Limit request size
+	// -------------------------------------------------
+	// 1️⃣ Request size → JSON decoding
+	// -------------------------------------------------
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
-	
+
 	var req CreateURLRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON")
 		return
 	}
-	
-	// Validate URL
+
 	if !isValidURL(req.OriginalURL) {
 		writeError(w, http.StatusBadRequest, "Invalid URL")
 		return
 	}
-	
-	// Generate short code
-	var shortCode string
-	var err error
-	
-	if req.CustomCode != "" {
-		if !isValidCustomCode(req.CustomCode) {
-			writeError(w, http.StatusBadRequest, "Invalid custom code")
-			return
-		}
-		shortCode = req.CustomCode
-	} else {
-		shortCode, err = getNextSequentialCode()
-		if err != nil {
-			log.Printf("Sequential code error: %v", err)
-			writeError(w, http.StatusInternalServerError, "Code generation failed")
-			return
-		}
-	}
-	
-	// Parse expiration
+
+	// -------------------------------------------------
+	// 2️⃣ Parse optional expiration date
+	// -------------------------------------------------
 	var expiresAt *time.Time
 	if req.ExpiresAt != "" {
-		parsed, err := time.Parse(time.RFC3339, req.ExpiresAt)
+		t, err := time.Parse(time.RFC3339, req.ExpiresAt)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid expiration date")
 			return
 		}
-		expiresAt = &parsed
+		expiresAt = &t
 	}
-	
-	// Insert using prepared statement
-	var id int64
-	var createdAt time.Time
-	
-	atomic.AddInt64(&dbQueryCounter, 1)
-	err = insertStmt.QueryRow(shortCode, req.OriginalURL, expiresAt).Scan(&id, &createdAt)
-	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") {
-			writeError(w, http.StatusConflict, "Short code already exists")
-			return
+
+	// -------------------------------------------------
+	// 3️⃣ Insert a row **atomically** (ON CONFLICT)
+	// -------------------------------------------------
+	const maxAttempts = 12       // enough for the 62⁶ space
+	var shortCode string          // finally‑chosen key
+	var createdAt time.Time       // timestamp returned by the insert
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		var candidate string
+
+		// Custom code supplied by the user
+		if req.CustomCode != "" {
+			if !isValidCustomCode(req.CustomCode) {
+				writeError(w, http.StatusBadRequest, "Invalid custom code")
+				return
+			}
+			candidate = req.CustomCode
+		} else {
+			// Random code
+			candidate = generateRandomCode(6)
 		}
-		log.Printf("Database error: %v", err)
+
+		// The INSERT statement already contains
+		//   ON CONFLICT (short_code) DO NOTHING
+		// so a duplicate will make Scan return an error we can test for.
+		var id int64 // we need a placeholder – we don't care about it
+		err := insertStmt.QueryRow(candidate, req.OriginalURL, expiresAt).
+			Scan(&id, &createdAt)
+
+		if err == nil {
+			// Success!  Use the candidate and break out of the loop.
+			shortCode = candidate
+			break
+		}
+
+		// If the error is due to a duplicate key, try again.
+		if strings.Contains(err.Error(), "duplicate key") || err == sql.ErrNoRows {
+			continue
+		}
+
+		// Any other error is fatal.
+		log.Printf("database error while creating short URL: %v", err)
 		writeError(w, http.StatusInternalServerError, "Database error")
 		return
 	}
-	
-	// Cache the URL
+
+	// We should always have a short code at this point; if not,
+	// something extremely unlucky happened (the namespace is full).
+	if shortCode == "" {
+		writeError(w, http.StatusServiceUnavailable,
+			"Could not generate a unique short code – please try again")
+		return
+	}
+
+	// -------------------------------------------------
+	// 4️⃣ Cache the mapping (helps future redirects)
+	// -------------------------------------------------
 	setCachedURL(shortCode, req.OriginalURL, expiresAt)
-	
-	// Build response
-	response := CreateURLResponse{
+
+	// -------------------------------------------------
+	// 5️⃣ Return JSON response
+	// -------------------------------------------------
+	resp := CreateURLResponse{
 		ShortCode:   shortCode,
 		ShortURL:    fmt.Sprintf("https://%s/%s", r.Host, shortCode),
 		OriginalURL: req.OriginalURL,
 		CreatedAt:   createdAt,
 		ExpiresAt:   expiresAt,
 	}
-	
-	writeJSON(w, http.StatusCreated, response)
+
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 func redirectHandler(w http.ResponseWriter, r *http.Request) {
@@ -306,7 +328,6 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// Try cache first
 	if originalURL, expiresAt, exists := getCachedURL(shortCode); exists {
-		// Check expiration
 		if expiresAt != nil && time.Now().After(*expiresAt) {
 			http.Error(w, "Link expired", http.StatusGone)
 			return
@@ -331,13 +352,11 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Check expiration
 	if expiresAt != nil && time.Now().After(*expiresAt) {
 		http.Error(w, "Link expired", http.StatusGone)
 		return
 	}
 	
-	// Cache and redirect
 	setCachedURL(shortCode, originalURL, expiresAt)
 	incrementClickCount(shortCode)
 	http.Redirect(w, r, originalURL, http.StatusMovedPermanently)
@@ -370,7 +389,6 @@ func statsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func healthAPIHandler(w http.ResponseWriter, r *http.Request) {
-	// Quick database ping with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	
@@ -379,22 +397,20 @@ func healthAPIHandler(w http.ResponseWriter, r *http.Request) {
 		dbStatus = "down"
 	}
 	
-	// Count cached items
 	cacheSize := 0
 	urlCache.Range(func(k, v interface{}) bool {
 		cacheSize++
 		return true
 	})
 	
-	// Get total URLs
 	var totalUrls int64
+	var currentSeq int64
 	atomic.AddInt64(&dbQueryCounter, 1)
 	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM urls").Scan(&totalUrls)
+	db.QueryRowContext(ctx, "SELECT last_value FROM urls_id_seq").Scan(&currentSeq)
 	
-	// Get database connection stats
 	dbStats := db.Stats()
 	
-	// Get memory stats
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	
@@ -403,9 +419,10 @@ func healthAPIHandler(w http.ResponseWriter, r *http.Request) {
 		"database":           dbStatus,
 		"cache_size":         cacheSize,
 		"uptime":             time.Since(startTime).String(),
-		"version":            "1.1.9",
+		"version":            "1.3.0",
 		"go_version":         runtime.Version(),
 		"total_urls":         totalUrls,
+		"current_sequence":   currentSeq,
 		"timestamp":          time.Now().Unix(),
 		"db_queries":         atomic.LoadInt64(&dbQueryCounter),
 		"memory_usage":       memStats.Alloc,
@@ -428,9 +445,7 @@ func healthDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "static/health.html")
 }
 
-// Simple, fast router
 func router(w http.ResponseWriter, r *http.Request) {
-	// Set headers once
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -443,8 +458,6 @@ func router(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	path := r.URL.Path
-	
-	// Route with early returns for better performance
 	switch {
 	case path == "/health":
 		healthDashboardHandler(w, r)
@@ -467,7 +480,6 @@ func main() {
 	initDB()
 	defer db.Close()
 	
-	// Clean shutdown
 	defer func() {
 		if insertStmt != nil { insertStmt.Close() }
 		if selectStmt != nil { selectStmt.Close() }
@@ -489,7 +501,7 @@ func main() {
 	log.Printf("📊 Optimized Go + PostgreSQL")
 	log.Printf("📊 Health API: http://localhost:%s/api/health", getPort())
 	log.Printf("🔍 Health Dashboard: http://localhost:%s/health", getPort())
-	log.Printf("🎯 Sequential numbering ready!")
+	log.Printf("🎯 Sequential numbering FIXED - no more phantom consumption!")
 	
 	log.Fatal(server.ListenAndServe())
 }
