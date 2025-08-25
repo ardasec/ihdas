@@ -1,0 +1,26 @@
+[Unit]
+Description=ihdas Simple URL Shortener
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ihdas
+Group=ihdas
+WorkingDirectory=/opt/ihdas
+ExecStart=/opt/ihdas/ihdas
+Restart=always
+RestartSec=5
+
+# Environment variables
+Environment=DATABASE_URL=postgres://ihdas:ihdas-secure-password-2024@localhost/ihdas?sslmode=disable
+Environment=PORT=8080
+#
+# # Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/ihdas
+#
+[Install]
+WantedBy=multi-user.target
