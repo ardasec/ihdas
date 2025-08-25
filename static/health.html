@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ihdas Health Dashboard</title>
+    <title>ihdas - Health Dashboard</title>
     <style>
         :root {
             /* Gruvbox Color Palette */
@@ -269,8 +269,7 @@
 <body>
     <div class="dashboard">
         <div class="header">
-            <h1>ihdas Health Dashboard</h1>
-            <p class="subtitle">Real-time system monitoring and performance metrics</p>
+            <h1>Health Dashboard</h1>
             <div class="status-indicator" id="statusIndicator">
                 <div class="status-dot"></div>
                 <span id="statusText">Loading...</span>
@@ -384,7 +383,7 @@
 
             // Main metrics
             document.getElementById('uptime').textContent = formatUptime(data.uptime);
-            document.getElementById('dbStatus').textContent = data.database === 'up' ? '✅ Connected' : '❌ Disconnected';
+            document.getElementById('dbStatus').textContent = data.database === 'up' ? 'Connected' : 'Disconnected';
             document.getElementById('cacheSize').textContent = data.cache_size?.toLocaleString() || '0';
             document.getElementById('totalUrls').textContent = data.total_urls?.toLocaleString() || '--';
 

@@ -78,7 +78,7 @@ func generateRandomCode(length int) string {
 
 // Database initialization
 func initDB() {
-	dbURL := os.Getenv("DATABASE_URL")
+	dbURL := os.Getenv("DATABASE_URL") // Set your DATABASE_URL environment variable
 	if dbURL == "" {
 		dbURL = "postgres://ihdas:secure-and-complicated-password@localhost/ihdas?sslmode=disable"
 	}
@@ -118,7 +118,7 @@ func initDB() {
 	// Prepare statements for better performance
 	prepareStatements()
 	
-	log.Println("✅ PostgreSQL connected with optimizations")
+	log.Println("PostgreSQL connected with optimizations")
 }
 
 // Prepare frequently used statements
@@ -217,7 +217,7 @@ func isValidCustomCode(code string) bool {
 // Handlers
 func createURLHandler(w http.ResponseWriter, r *http.Request) {
 	// -------------------------------------------------
-	// 1️⃣ Request size → JSON decoding
+	// Request size - JSON decoding
 	// -------------------------------------------------
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
 
@@ -233,7 +233,7 @@ func createURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// -------------------------------------------------
-	// 2️⃣ Parse optional expiration date
+	// Parse optional expiration date
 	// -------------------------------------------------
 	var expiresAt *time.Time
 	if req.ExpiresAt != "" {
@@ -246,7 +246,7 @@ func createURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// -------------------------------------------------
-	// 3️⃣ Insert a row **atomically** (ON CONFLICT)
+	// Insert a row **atomically** (ON CONFLICT)
 	// -------------------------------------------------
 	const maxAttempts = 12       // enough for the 62⁶ space
 	var shortCode string          // finally‑chosen key
@@ -300,12 +300,12 @@ func createURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// -------------------------------------------------
-	// 4️⃣ Cache the mapping (helps future redirects)
+	// Cache the mapping (helps future redirects)
 	// -------------------------------------------------
 	setCachedURL(shortCode, req.OriginalURL, expiresAt)
 
 	// -------------------------------------------------
-	// 5️⃣ Return JSON response
+	// Return JSON response
 	// -------------------------------------------------
 	resp := CreateURLResponse{
 		ShortCode:   shortCode,
@@ -497,11 +497,10 @@ func main() {
 		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 	
-	log.Printf("🚀 ihdas server starting on port %s", getPort())
-	log.Printf("📊 Optimized Go + PostgreSQL")
-	log.Printf("📊 Health API: http://localhost:%s/api/health", getPort())
-	log.Printf("🔍 Health Dashboard: http://localhost:%s/health", getPort())
-	log.Printf("🎯 Sequential numbering FIXED - no more phantom consumption!")
+	log.Printf("ihdas, server starting on port %s", getPort())
+	log.Printf("Optimized Go + PostgreSQL")
+	log.Printf("Health API: http://localhost:%s/api/health", getPort())
+	log.Printf("Health Dashboard: http://localhost:%s/health", getPort())
 	
 	log.Fatal(server.ListenAndServe())
 }
