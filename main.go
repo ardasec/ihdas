@@ -80,8 +80,8 @@ func generateRandomCode(length int) string {
 func initDB() {
 	dbURL := os.Getenv("DATABASE_URL") // Set your DATABASE_URL environment variable
 	if dbURL == "" {
-		dbURL = "postgres://ihdas:secure-and-complicated-password@localhost/ihdas?sslmode=disable"
-	}
+		dbURL = "postgres://ihdas:your-secure-password@localhost/ihdas?sslmode=disable" 
+	}	// Or include your connection string in this file
 	
 	var err error
 	db, err = sql.Open("postgres", dbURL)
