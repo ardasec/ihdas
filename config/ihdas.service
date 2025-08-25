@@ -12,8 +12,8 @@ Restart=always
 RestartSec=5
 
 # Environment variables
-Environment=DATABASE_URL=postgres://ihdas:ihdas-secure-password-2024@localhost/ihdas?sslmode=disable
-Environment=PORT=8080
+Environment=DATABASE_URL=postgres://ihdas:secure-and-complicated-password@localhost/ihdas?sslmode=disable # Set your PostgreSQL connection string
+Environment=PORT=8080 # App runs on port 8080
 #
 # # Security settings
 NoNewPrivileges=true
